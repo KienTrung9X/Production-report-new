@@ -4,25 +4,31 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "ng serve",
+    "ng": "ng",
+    "start": "ng serve",
+    "dev": "ng serve --port 3000 --open",
     "build": "ng build",
-    "preview": "ng serve --configuration=production"
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test"
   },
   "dependencies": {
-    "rxjs": "^7.8.2",
+    "@angular/common": "^20.3.6",
+    "@angular/compiler": "^20.3.6",
+    "@angular/core": "^20.3.6",
+    "@angular/forms": "^20.3.6",
+    "@angular/platform-browser": "^20.3.6",
+    "@angular/router": "^20.3.6",
     "@google/genai": "^1.13.0",
-    "@angular/platform-browser": "^20.1.0",
-    "@angular/core": "^20.1.0",
-    "@angular/compiler": "^20.1.0",
-    "@angular/build": "^20.1.0",
-    "@angular/cli": "^20.1.0",
-    "@angular/common": "^20.1.0",
-    "@angular/compiler-cli": "^20.1.0",
-    "tailwindcss": "latest"
+    "chart.js": "^4.5.1",
+    "rxjs": "^7.8.2",
+    "tailwindcss": "latest",
+    "zone.js": "^0.15.1"
   },
   "devDependencies": {
+    "@angular-devkit/build-angular": "^20.3.6",
+    "@angular/cli": "^20.3.6",
+    "@angular/compiler-cli": "^20.3.6",
     "@types/node": "^22.14.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "typescript": "~5.8.2"
   }
 }

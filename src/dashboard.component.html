@@ -1,0 +1,273 @@
+<div class="w-full max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8">
+  <header class="mb-6">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-3xl font-bold text-white">Production Dashboard</h1>
+      <div class="flex gap-2">
+        <button (click)="loadDataFromSQL()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded transition">
+          🔄 Load from AS/400
+        </button>
+        <button (click)="loadData()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded transition">
+          🔄 Refresh Data
+        </button>
+        <button (click)="debugCurrentState()" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded transition">
+          🔍 Debug
+        </button>
+        <a routerLink="/plan-entry" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded transition">
+          📋 Plan Entry
+        </a>
+        <a routerLink="/raw-data" class="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded transition">
+          Raw Data
+        </a>
+      </div>
+    </div>
+    
+    @if (showMessage()) {
+    <div class="p-3 rounded border" 
+         [class.bg-green-900]="loadingMessage().includes('✅')" 
+         [class.border-green-600]="loadingMessage().includes('✅')" 
+         [class.bg-yellow-900]="loadingMessage().includes('⏳')" 
+         [class.border-yellow-600]="loadingMessage().includes('⏳')" 
+         [class.bg-red-900]="loadingMessage().includes('❌')" 
+         [class.border-red-600]="loadingMessage().includes('❌')">
+      <p class="text-white">{{ loadingMessage() }}</p>
+    </div>
+    }
+  </header>
+
+  <!-- Filters -->
+  <section class="mb-6 p-3 bg-slate-800 rounded border border-slate-700">
+    <div class="grid grid-cols-6 gap-3">
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">Fiscal Year (Load Data)</label>
+        <select class="w-full bg-slate-700 text-white p-2 rounded text-sm font-semibold" [value]="fiscalYear()" (change)="fiscalYear.set($any($event.target).value)">
+          @for (year of fiscalYearOptions; track year) {
+            <option [value]="year">{{ year }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">Month</label>
+        <select class="w-full bg-slate-700 text-white p-2 rounded text-sm font-semibold" [value]="selectedMonth()" (change)="selectedMonth.set($any($event.target).value)">
+          @for (month of monthOptions; track month) {
+            <option [value]="month">{{ formatMonthDisplay(month) }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">Week</label>
+        <select class="w-full bg-slate-700 text-white p-2 rounded text-sm font-semibold" [value]="selectedWeek()" (change)="selectedWeek.set(+$any($event.target).value)">
+          @for (week of weeks(); track week.value) {
+            <option [value]="week.value">{{ week.label }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">Start Date</label>
+        <input type="date" class="w-full bg-slate-700 text-white p-2 rounded text-sm" [value]="startDate()" (input)="startDate.set($any($event.target).value)">
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">End Date</label>
+        <input type="date" class="w-full bg-slate-700 text-white p-2 rounded text-sm" [value]="endDate()" (input)="endDate.set($any($event.target).value)">
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">Area</label>
+        <select class="w-full bg-slate-700 text-white p-2 rounded text-sm" [value]="selectedArea()" (change)="selectedArea.set($any($event.target).value); selectedMachineGroup.set('All')">
+          @for (area of areaList; track area) {
+            <option [value]="area">{{ area }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">Machine Group</label>
+        <select class="w-full bg-slate-700 text-white p-2 rounded text-sm" [value]="selectedMachineGroup()" (change)="selectedMachineGroup.set($any($event.target).value)">
+          @for (group of machineGroups(); track group) {
+            <option [value]="group">{{ group }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <main class="space-y-12">
+    <!-- Charts Section -->
+    <section>
+      <h2 class="text-2xl font-semibold text-white mb-4">Visual Dashboard</h2>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Chart 1: Daily Performance -->
+        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 shadow-lg">
+          <h3 class="font-semibold text-white mb-2">Daily Performance (Act/Plan %)</h3>
+          <div class="h-80">
+            <canvas #dailyPerformanceChart></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: Total Output by Machine Group -->
+        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 shadow-lg">
+          <h3 class="font-semibold text-white mb-2">Weekly Output by Machine Group (Act vs Plan)</h3>
+          <div class="h-80">
+            <canvas #totalOutputChart></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 3: Average Weekly Performance -->
+        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 shadow-lg">
+          <h3 class="font-semibold text-white mb-2">Average Weekly Performance (%)</h3>
+          <div class="h-80">
+            <canvas #avgPerformanceChart></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 4: Total Output by Area -->
+        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 shadow-lg">
+          <h3 class="font-semibold text-white mb-2">Production Proportion by Area</h3>
+          <div class="h-80">
+            <canvas #areaProportionChart></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 5: Daily Performance Trend -->
+        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 shadow-lg lg:col-span-2">
+          <h3 class="font-semibold text-white mb-2">Daily Performance Trend (Act/Plan %)</h3>
+          <div class="h-80">
+            <canvas #monthlyTrendChart></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 6: D-Value and Remake PR -->
+        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 shadow-lg lg:col-span-2">
+          <h3 class="font-semibold text-white mb-2">D-Value and Remake PR</h3>
+          <div class="flex items-center justify-center h-48 bg-slate-900/50 rounded-md">
+            <p class="text-slate-400">Chart will be displayed when defect data is available.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Data Tables Section -->
+    <section>
+      <h2 class="text-2xl font-semibold text-white mb-4 mt-12">Data Tables</h2>
+      <!-- Selected Area Section -->
+      @if (selectedArea() !== 'All' && currentAreaData().length > 0) {
+      <div class="mb-12">
+        <h3 class="text-xl font-semibold text-white mb-4">Khu vực {{ selectedArea() }}</h3>
+        <div class="overflow-x-auto rounded-lg border border-slate-700 bg-slate-800 shadow-lg">
+          <table class="w-full text-xs text-left text-slate-300">
+            <thead class="text-xs text-slate-300 uppercase bg-slate-700 sticky top-0 z-10">
+              <tr>
+                <th rowspan="2" class="px-3 py-2 border-r border-slate-600 sticky left-0 bg-slate-700 z-20">Machine</th>
+                @for (date of displayedDates(); track date) {
+                <th colspan="3" class="text-center py-1 border-b border-x border-slate-600">{{ date }}</th>
+                }
+                <th colspan="3" class="text-center py-1 border-b border-x border-slate-600 bg-blue-900">Act/Plan up to {{ endDate() || 'Date' }}</th>
+                <th colspan="3" class="text-center py-1 border-b border-x border-slate-600 bg-slate-600">Monthly Total</th>
+              </tr>
+              <tr>
+                @for (date of displayedDates(); track date) {
+                <th class="text-center font-medium px-1 py-1 border-x border-slate-600">Plan</th>
+                <th class="text-center font-medium px-1 py-1 border-x border-slate-600">Act</th>
+                <th class="text-center font-medium px-1 py-1 border-r border-slate-600">%</th>
+                }
+                <th class="text-center font-medium px-1 py-1 border-x border-slate-600 bg-blue-900">Plan</th>
+                <th class="text-center font-medium px-1 py-1 border-x border-slate-600 bg-blue-900">Act</th>
+                <th class="text-center font-medium px-1 py-1 border-r border-slate-600 bg-blue-900">%</th>
+                <th class="text-center font-medium px-1 py-1 border-x border-slate-600 bg-slate-600">Plan</th>
+                <th class="text-center font-medium px-1 py-1 border-x border-slate-600 bg-slate-600">Act</th>
+                <th class="text-center font-medium px-1 py-1 border-r border-slate-600 bg-slate-600">%</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+              @for (line of currentAreaData(); track line.name) {
+              <tr class="hover:bg-slate-700/50">
+                <td class="px-3 py-2 font-medium text-white text-xs sticky left-0 bg-slate-800 z-10">{{ line.name }}</td>
+                @for (day of line.data; track $index) {
+                <td class="text-center px-1 py-2 font-mono text-xs text-slate-300">{{ formatNumber(day.plan) }}</td>
+                <td class="text-center px-1 py-2 font-mono text-xs text-white font-semibold">{{ formatAct(day.act) }}</td>
+                <td class="text-center px-1 py-2 font-bold text-xs">
+                  @let percent = getPercentage(day.act, day.plan);
+                  @if (percent !== null) {
+                  <span [class.text-green-400]="percent >= 100" [class.text-yellow-400]="percent < 100 && percent >= 90" [class.text-red-500]="percent < 90">
+                    {{ formatPercent(percent) }}
+                  </span>
+                  } @else {
+                  <span>-</span>
+                  }
+                </td>
+                }
+                @let periodTotal = getLineTotal(line);
+                @let periodPercent = getPercentage(periodTotal.act, periodTotal.plan);
+                <td class="text-center px-1 py-2 font-medium font-mono bg-blue-900/30 text-xs text-slate-300">{{ formatNumber(periodTotal.plan) }}</td>
+                <td class="text-center px-1 py-2 font-medium font-mono bg-blue-900/30 text-xs text-white font-semibold">{{ formatAct(periodTotal.act) }}</td>
+                <td class="text-center px-1 py-2 font-bold bg-blue-900/30 text-xs">
+                  @if (periodPercent !== null) {
+                  <span [class.text-green-400]="periodPercent >= 100" [class.text-yellow-400]="periodPercent < 100 && periodPercent >= 90" [class.text-red-500]="periodPercent < 90">
+                    {{ formatPercent(periodPercent) }}
+                  </span>
+                  }
+                </td>
+                @let monthlyPlan = getMonthlyPlan(line);
+                @let monthlyAct = getMonthlyAct(line);
+                @let monthlyPercent = getPercentage(monthlyAct, monthlyPlan);
+                <td class="text-center px-1 py-2 font-medium font-mono bg-slate-600 text-xs text-slate-300">{{ formatNumber(monthlyPlan) }}</td>
+                <td class="text-center px-1 py-2 font-medium font-mono bg-slate-600 text-xs text-white font-semibold">{{ formatAct(monthlyAct) }}</td>
+                <td class="text-center px-1 py-2 font-bold bg-slate-600 text-xs">
+                  @if (monthlyPercent !== null) {
+                  <span [class.text-green-400]="monthlyPercent >= 100" [class.text-yellow-400]="monthlyPercent < 100 && monthlyPercent >= 90" [class.text-red-500]="monthlyPercent < 90">
+                    {{ formatPercent(monthlyPercent) }}
+                  </span>
+                  }
+                </td>
+              </tr>
+              }
+            </tbody>
+            <tfoot class="bg-slate-700 font-bold text-white">
+              <tr>
+                <td class="px-3 py-2 text-xs sticky left-0 bg-slate-700 z-10">Total</td>
+                @for (i of displayedDates(); track i; let idx = $index) {
+                @let dailyTotal = getDailyTotal(currentAreaData(), idx);
+                @let dailyPercent = getPercentage(dailyTotal.act, dailyTotal.plan);
+                <td class="text-center px-1 py-2 font-mono text-xs text-slate-300">{{ formatNumber(dailyTotal.plan) }}</td>
+                <td class="text-center px-1 py-2 font-mono text-xs text-white font-semibold">{{ formatAct(dailyTotal.act) }}</td>
+                <td class="text-center px-1 py-2 text-xs">
+                  @if (dailyPercent) {
+                  <span [class.text-green-400]="dailyPercent >= 100" [class.text-yellow-400]="dailyPercent < 100 && dailyPercent >= 90" [class.text-red-500]="dailyPercent < 90">
+                    {{ formatPercent(dailyPercent) }}
+                  </span>
+                  } @else {
+                  <span>-</span>
+                  }
+                </td>
+                }
+                @let periodTotal = getOverallTotal(currentAreaData());
+                @let periodPercent = getPercentage(periodTotal.act, periodTotal.plan);
+                <td class="text-center px-1 py-2 font-mono bg-blue-900 text-xs text-slate-300">{{ formatNumber(periodTotal.plan) }}</td>
+                <td class="text-center px-1 py-2 font-mono bg-blue-900 text-xs text-white font-semibold">{{ formatAct(periodTotal.act) }}</td>
+                <td class="text-center px-1 py-2 bg-blue-900 text-xs">
+                  @if(periodPercent) {
+                  <span [class.text-green-400]="periodPercent >= 100" [class.text-yellow-400]="periodPercent < 100 && periodPercent >= 90" [class.text-red-500]="periodPercent < 90">
+                    {{ formatPercent(periodPercent) }}
+                  </span>
+                  }
+                </td>
+                @let monthlyPlanTotal = getTotalMonthlyPlan(currentAreaData());
+                @let monthlyActTotal = getTotalMonthlyAct(currentAreaData());
+                @let monthlyPercent = getPercentage(monthlyActTotal, monthlyPlanTotal);
+                <td class="text-center px-1 py-2 font-mono bg-slate-600 text-xs text-slate-300">{{ formatNumber(monthlyPlanTotal) }}</td>
+                <td class="text-center px-1 py-2 font-mono bg-slate-600 text-xs text-white font-semibold">{{ formatAct(monthlyActTotal) }}</td>
+                <td class="text-center px-1 py-2 bg-slate-600 text-xs">
+                  @if(monthlyPercent) {
+                  <span [class.text-green-400]="monthlyPercent >= 100" [class.text-yellow-400]="monthlyPercent < 100 && monthlyPercent >= 90" [class.text-red-500]="monthlyPercent < 90">
+                    {{ formatPercent(monthlyPercent) }}
+                  </span>
+                  }
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      }
+
+
+    </section>
+  </main>
+</div>

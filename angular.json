@@ -10,14 +10,20 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular/build:application",
+          "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "outputPath": {
-              "base": "./dist",
-              "browser": "."
-            },
-            "browser": "index.tsx",
-            "tsConfig": "tsconfig.json"
+            "outputPath": "dist/app",
+            "index": "index.html",
+            "main": "main.ts",
+            "tsConfig": "tsconfig.json",
+            "assets": [
+              "production-data.json",
+              {
+                "glob": "**/*",
+                "input": "src/assets",
+                "output": "/"
+              }
+            ]
           },
           "configurations": {
             "production": {
@@ -48,5 +54,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": "0ed74c47-7fbc-4279-a34d-a304d1625da3"
   }
 }
