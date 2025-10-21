@@ -92,6 +92,13 @@
     <!-- Charts Section -->
     <section>
       <h2 class="text-2xl font-semibold text-white mb-4">Visual Dashboard</h2>
+      
+      @if (!hasData()) {
+      <div class="bg-yellow-900 border border-yellow-600 p-4 rounded-lg mb-6">
+        <p class="text-yellow-200">{{ noDataMessage() }}</p>
+      </div>
+      }
+      
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Chart 1: Daily Performance -->
         <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 shadow-lg">

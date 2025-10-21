@@ -183,12 +183,29 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
         this.startDate.set(newStartDate);
         this.endDate.set(newEndDate);
       } else {
-        // Specific week - use simple date calculation
-        const startDay = 1 + (selectedWeek - 1) * 7;
-        const endDay = Math.min(startDay + 6, new Date(parseInt(year), parseInt(monthNum), 0).getDate());
+        // Specific week - calculate based on first Monday
+        const firstDay = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+        const lastDay = new Date(parseInt(year), parseInt(monthNum), 0);
         
-        const newStartDate = `${year}-${monthNum}-${startDay.toString().padStart(2, '0')}`;
-        const newEndDate = `${year}-${monthNum}-${endDay.toString().padStart(2, '0')}`;
+        // Find first Monday
+        const firstMonday = new Date(firstDay);
+        while (firstMonday.getDay() !== 1) {
+          firstMonday.setDate(firstMonday.getDate() + 1);
+        }
+        
+        // Calculate week start and end
+        const weekStart = new Date(firstMonday);
+        weekStart.setDate(weekStart.getDate() + (selectedWeek - 1) * 7);
+        
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        
+        // Ensure we don't go beyond the month
+        const actualWeekEnd = weekEnd > lastDay ? lastDay : weekEnd;
+        
+        const newStartDate = `${weekStart.getFullYear()}-${(weekStart.getMonth() + 1).toString().padStart(2, '0')}-${weekStart.getDate().toString().padStart(2, '0')}`;
+        const newEndDate = `${actualWeekEnd.getFullYear()}-${(actualWeekEnd.getMonth() + 1).toString().padStart(2, '0')}-${actualWeekEnd.getDate().toString().padStart(2, '0')}`;
+        
         console.log('Setting week range:', newStartDate, 'to', newEndDate);
         this.startDate.set(newStartDate);
         this.endDate.set(newEndDate);
@@ -249,10 +266,8 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   }
 
   getCurrentMonth(): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    return `${year}${month}`;
+    // Temporarily use 2025/10 to match available data
+    return '202510';
   }
 
   getCurrentWeek(): number {
@@ -296,6 +311,23 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   currentAreaData = signal<ProcessedLine[]>([]);
   allData = signal<any>(null);
   areaItemsMap = signal<{ [area: string]: string[] }>({});
+  
+  hasData = computed(() => {
+    const data = this.currentAreaData();
+    const dates = this.displayedDates();
+    return data.length > 0 && dates.length > 0;
+  });
+  
+  noDataMessage = computed(() => {
+    const allData = this.allData();
+    const currentData = this.currentAreaData();
+    const dates = this.displayedDates();
+    
+    if (!allData) return 'Chưa load dữ liệu. Nhấn "Refresh Data" để load dữ liệu từ file.';
+    if (!dates.length) return 'Không có dữ liệu trong khoảng thời gian đã chọn.';
+    if (!currentData.length) return `Không có dữ liệu cho khu vực "${this.selectedArea()}" trong khoảng thời gian đã chọn.`;
+    return '';
+  });
   
   machineGroups = computed(() => {
     const area = this.selectedArea();
@@ -419,9 +451,8 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit() {
-    // Load initial data
-    this.loadData();
-    setTimeout(() => this.createCharts(), 100);
+    console.log('ngAfterViewInit called');
+    // Charts will be created automatically by effects when data is loaded
   }
 
   ngOnDestroy() {
